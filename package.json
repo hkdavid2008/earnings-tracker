@@ -1,12 +1,13 @@
 {
   "name": "earnings-tracker",
   "version": "1.0.0",
-  "description": "> AI-powered earnings calendar tracker for US, HK, and CN markets with sector filtering. > 自动追踪美股、港股、A股三大市场财报，支持行业板块筛选的AI财报追踪器。",
+  "description": "> AI-powered earnings calendar tracker for US market with mobile earnings alerts. > 自动追踪美股财报，结构化分析并推送到手机 WhatsApp。",
   "main": "index.js",
   "scripts": {
     "test": "echo \"No automated tests configured\"",
-    "earnings:push": "node scripts/earnings-mobile-report.js preview us",
-    "earnings:test-push": "node scripts/earnings-mobile-report.js test"
+    "earnings:us:dry-run": "node scripts/us-earnings-whatsapp.js dry-run",
+    "earnings:us:send": "node scripts/us-earnings-whatsapp.js run",
+    "earnings:us:test-whatsapp": "node scripts/us-earnings-whatsapp.js test"
   },
   "repository": {
     "type": "git",
