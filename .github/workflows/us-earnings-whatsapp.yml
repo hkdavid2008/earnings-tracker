@@ -1,0 +1,78 @@
+name: US Earnings WhatsApp
+
+on:
+  schedule:
+    # UTC 时间。03:00 UTC Tue-Sat 约等于美东前一日 23:00，用于覆盖美股盘后财报和电话会。
+    - cron: '0 3 * * 2-6'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'run / dry-run / test'
+        required: true
+        default: 'dry-run'
+        type: choice
+        options:
+          - run
+          - dry-run
+          - test
+      date:
+        description: '财报日期 YYYY-MM-DD；留空为当天 UTC 日期'
+        required: false
+        default: ''
+      universe_limit:
+        description: '美股市值排名数量'
+        required: false
+        default: '1500'
+      max_transcripts:
+        description: '每次最多分析 transcript 数量，避免 API 爆量'
+        required: false
+        default: '12'
+
+permissions:
+  contents: read
+
+jobs:
+  us-earnings-whatsapp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+      TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+      TWILIO_WHATSAPP_FROM: ${{ secrets.TWILIO_WHATSAPP_FROM }}
+      WHATSAPP_TO: ${{ secrets.WHATSAPP_TO }}
+      TWILIO_CONTENT_SID: ${{ secrets.TWILIO_CONTENT_SID }}
+      TWILIO_CONTENT_VARIABLES: ${{ secrets.TWILIO_CONTENT_VARIABLES }}
+      US_UNIVERSE_LIMIT: ${{ github.event.inputs.universe_limit || '1500' }}
+      MAX_TRANSCRIPTS_PER_RUN: ${{ github.event.inputs.max_transcripts || '12' }}
+      EARNINGS_DATE: ${{ github.event.inputs.date || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Test WhatsApp
+        if: ${{ github.event.inputs.mode == 'test' }}
+        run: node scripts/us-earnings-whatsapp.js test
+
+      - name: Dry run
+        if: ${{ github.event.inputs.mode == 'dry-run' }}
+        env:
+          SEND_WHATSAPP: 'false'
+        run: node scripts/us-earnings-whatsapp.js dry-run "$EARNINGS_DATE"
+
+      - name: Run and send WhatsApp
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.mode == 'run' }}
+        run: node scripts/us-earnings-whatsapp.js run "$EARNINGS_DATE"
+
+      - name: Add report to workflow summary
+        if: always() && hashFiles('earnings_report.md') != ''
+        run: cat earnings_report.md >> "$GITHUB_STEP_SUMMARY"
