@@ -7,7 +7,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 const CONFIG_PATH = path.join(__dirname, '../../.config/watchlist.json');
 let config;
@@ -19,7 +18,7 @@ try {
 }
 
 const FMP_CONFIG = config.dataSource?.options?.financialModelingPrep || {};
-const API_KEY = FMP_CONFIG.apiKey;
+const API_KEY = process.env.FMP_API_KEY || FMP_CONFIG.apiKey;
 const BASE_URL = FMP_CONFIG.baseUrl || 'https://financialmodelingprep.com/api/v3';
 
 /**
@@ -27,9 +26,9 @@ const BASE_URL = FMP_CONFIG.baseUrl || 'https://financialmodelingprep.com/api/v3
  */
 async function getEarningsCalendar(symbol = null, market = 'us') {
   if (!API_KEY || API_KEY === 'YOUR_FMP_API_KEY_HERE') {
-    throw new Error('FMP API Key 未配置，请在 .config/watchlist.json 中设置');
+    throw new Error('FMP API Key 未配置，请设置环境变量 FMP_API_KEY，或在 .config/watchlist.json 中设置');
   }
-  
+
   try {
     let url;
     if (symbol) {
@@ -41,17 +40,17 @@ async function getEarningsCalendar(symbol = null, market = 'us') {
       const nextWeek = new Date();
       nextWeek.setDate(nextWeek.getDate() + 7);
       const nextWeekStr = nextWeek.toISOString().split('T')[0];
-      
+
       url = `${BASE_URL}/earning_calendar?from=${today}&to=${nextWeekStr}&apikey=${API_KEY}`;
     }
-    
+
     const response = await fetch(url);
     const data = await response.json();
-    
+
     if (!data || data.length === 0) {
       return null;
     }
-    
+
     // 转换为统一格式
     return data.map(item => ({
       symbol: item.symbol,
@@ -75,21 +74,21 @@ async function getEarningsCalendar(symbol = null, market = 'us') {
  */
 async function getCompanyEarnings(symbol, market = 'us') {
   if (!API_KEY || API_KEY === 'YOUR_FMP_API_KEY_HERE') {
-    throw new Error('FMP API Key 未配置');
+    throw new Error('FMP API Key 未配置，请设置环境变量 FMP_API_KEY');
   }
-  
+
   try {
     // 获取最新财报
     const url = `${BASE_URL}/income-statement/${symbol}?limit=1&apikey=${API_KEY}`;
     const response = await fetch(url);
     const data = await response.json();
-    
+
     if (!data || data.length === 0) {
       return null;
     }
-    
+
     const latest = data[0];
-    
+
     return {
       symbol: latest.symbol,
       name: latest.symbol,
@@ -122,28 +121,28 @@ async function getCompanyEarnings(symbol, market = 'us') {
  */
 async function getCompanyInfo(symbol, market = 'us') {
   if (!API_KEY || API_KEY === 'YOUR_FMP_API_KEY_HERE') {
-    throw new Error('FMP API Key 未配置');
+    throw new Error('FMP API Key 未配置，请设置环境变量 FMP_API_KEY');
   }
-  
+
   try {
     // 获取公司资料
     const profileUrl = `${BASE_URL}/profile/${symbol}?apikey=${API_KEY}`;
     const response = await fetch(profileUrl);
     const data = await response.json();
-    
+
     if (!data || data.length === 0) {
       return null;
     }
-    
+
     const profile = data[0];
-    
+
     // 获取下次财报日期
     const calendarUrl = `${BASE_URL}/earning_calendar/${symbol}?apikey=${API_KEY}`;
     const calendarResponse = await fetch(calendarUrl);
     const calendarData = await calendarResponse.json();
-    
+
     const nextEarnings = calendarData && calendarData.length > 0 ? calendarData[0] : null;
-    
+
     return {
       symbol: profile.symbol,
       name: profile.companyName || profile.symbol,
@@ -153,8 +152,8 @@ async function getCompanyInfo(symbol, market = 'us') {
       marketName: profile.exchange,
       nextEarningsDate: nextEarnings ? nextEarnings.date : 'N/A',
       expectedEPS: nextEarnings ? nextEarnings.epsEstimated : 'N/A',
-      expectedRevenue: nextEarnings && nextEarnings.revenueEstimated 
-        ? (nextEarnings.revenueEstimated / 1000000).toFixed(1) + 'M' 
+      expectedRevenue: nextEarnings && nextEarnings.revenueEstimated
+        ? (nextEarnings.revenueEstimated / 1000000).toFixed(1) + 'M'
         : 'N/A',
       currency: profile.currency || 'USD',
       description: profile.description,

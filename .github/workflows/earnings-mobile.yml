@@ -1,0 +1,87 @@
+name: Earnings Mobile Push
+
+on:
+  schedule:
+    # GitHub Actions 使用 UTC。12:00 UTC 约等于美东夏令时 08:00。
+    - cron: '0 12 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'preview 或 summary'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview
+          - summary
+          - test
+      market:
+        description: '市场: us/hk/cn'
+        required: false
+        default: 'us'
+      sector:
+        description: '板块: tech/finance/healthcare/consumer/energy/industrial；留空为全部'
+        required: false
+        default: ''
+      symbol:
+        description: 'summary 模式股票代码，例如 NVDA'
+        required: false
+        default: 'NVDA'
+      provider:
+        description: '数据源: fmp/alphaVantage/yahooFinance/sina/mock'
+        required: false
+        default: 'fmp'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  push-earnings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      COMMAND: ${{ github.event.inputs.command || 'preview' }}
+      MARKET: ${{ github.event.inputs.market || 'us' }}
+      SECTOR: ${{ github.event.inputs.sector || '' }}
+      SYMBOL: ${{ github.event.inputs.symbol || 'NVDA' }}
+      EARNINGS_PROVIDER: ${{ github.event.inputs.provider || 'fmp' }}
+      FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      LOOKAHEAD_DAYS: '7'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate earnings report
+        run: |
+          if [ "$COMMAND" = "summary" ]; then
+            node scripts/earnings-mobile-report.js summary "$SYMBOL" "$MARKET" "$EARNINGS_PROVIDER"
+          elif [ "$COMMAND" = "test" ]; then
+            node scripts/earnings-mobile-report.js test
+          else
+            node scripts/earnings-mobile-report.js preview "$MARKET" "$SECTOR" "$EARNINGS_PROVIDER"
+          fi
+
+      - name: Add report to workflow summary
+        run: cat earnings_report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create GitHub mobile notification issue
+        if: ${{ hashFiles('should_notify.txt') != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(cat should_notify.txt)" = "1" ]; then
+            TITLE="财报提醒 $(date -u +'%Y-%m-%d') ${MARKET} ${SECTOR} ${SYMBOL}"
+            gh issue create --title "$TITLE" --body-file earnings_report.md --label earnings
+          else
+            echo "No matching earnings events. Skip issue notification."
+          fi

@@ -1,23 +1,26 @@
 {
   "name": "earnings-tracker",
   "version": "1.0.0",
-  "description": "> AI-powered earnings calendar tracker for US, HK, and CN markets with sector filtering. > 自动追踪美股、港股、A股三大市场财报，支持行业板块筛选的AI财报追踪器。",
+  "description": "> AI-powered earnings calendar tracker for US market with mobile earnings alerts. > 自动追踪美股财报，结构化分析并推送到手机 WhatsApp。",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No automated tests configured\"",
+    "earnings:us:dry-run": "node scripts/us-earnings-whatsapp.js dry-run",
+    "earnings:us:send": "node scripts/us-earnings-whatsapp.js run",
+    "earnings:us:test-whatsapp": "node scripts/us-earnings-whatsapp.js test"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Indomi/earnings-tracker.git"
+    "url": "git+https://github.com/hkdavid2008/earnings-tracker.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/Indomi/earnings-tracker/issues"
+    "url": "https://github.com/hkdavid2008/earnings-tracker/issues"
   },
-  "homepage": "https://github.com/Indomi/earnings-tracker#readme",
+  "homepage": "https://github.com/hkdavid2008/earnings-tracker#readme",
   "dependencies": {
     "yahoo-finance2": "^3.13.2"
   }
